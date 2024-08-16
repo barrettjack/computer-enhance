@@ -49,7 +49,7 @@ static f64 ReferenceHaversine(f64 X0, f64 Y0, f64 X1, f64 Y1) {
 
 double uniform_point_distribution(int seed, int num_points) {
     std::stringstream filename;
-    filename << "haversine-" << seed << "-" << num_points;
+    filename << "uniform-haversine-" << seed << "-" << num_points;
     std::ofstream outf{filename.str() + ".json"};
 
     outf << "{\"pairs\":[\n";
@@ -83,9 +83,21 @@ double uniform_point_distribution(int seed, int num_points) {
     return sum_of_distances / num_points;
 }
 
+void update_cluster_distributions(std::uniform_real_distribution<> xs, std::uniform_real_distribution<> ys,
+                                  std::uniform_real_distribution<>& cluster_xs,
+                                  std::uniform_real_distribution<>& cluster_ys,
+                                  std::mt19937 gen) {
+    double xd1 {xs(gen)};
+    double xd2 {xs(gen)};
+    double yd1 {ys(gen)};
+    double yd2 {ys(gen)};
+    cluster_xs = std::uniform_real_distribution<> (std::min(xd1, xd2), std::max(xd1, xd2));
+    cluster_ys = std::uniform_real_distribution<> (std::min(yd1, yd2), std::max(yd1, yd2));
+}
+
 double clustered_point_distribution(int seed, int num_points) {
     std::stringstream filename;
-    filename << "haversine-" << seed << "-" << num_points;
+    filename << "clustered-haversine-" << seed << "-" << num_points;
     std::ofstream outf{filename.str() + ".json"};
 
     outf << "{\"pairs\":[\n";
@@ -96,23 +108,14 @@ double clustered_point_distribution(int seed, int num_points) {
     std::mt19937 gen(seed);
     std::uniform_real_distribution<> xs(-180, 180);
     std::uniform_real_distribution<> ys(-90, 90);
-
-    double xd1 {xs(gen)};
-    double xd2 {xs(gen)};
-    double yd1 {ys(gen)};
-    double yd2 {ys(gen)};
-    std::uniform_real_distribution<> cluster_xs(std::min(xd1, xd2), std::max(xd1, xd2));
-    std::uniform_real_distribution<> cluster_ys(std::min(yd1, yd2), std::max(yd1, yd2));
+    std::uniform_real_distribution<> cluster_xs;
+    std::uniform_real_distribution<> cluster_ys;
+    update_cluster_distributions(xs, ys, cluster_xs, cluster_ys, gen);
 
     int count_per_cluster {num_points / NUM_CLUSTERS};
     for (int i {1}; i <= num_points; i++) {
         if (i % count_per_cluster == 0) {
-            double xd1 {xs(gen)};
-            double xd2 {xs(gen)};
-            double yd1 {ys(gen)};
-            double yd2 {ys(gen)};
-            cluster_xs = std::uniform_real_distribution<> (std::min(xd1, xd2), std::max(xd1, xd2));
-            cluster_ys = std::uniform_real_distribution<> (std::min(yd1, yd2), std::max(yd1, yd2));
+            update_cluster_distributions(xs, ys, cluster_xs, cluster_ys, gen);
         }
         double x0 {cluster_xs(gen)};
         double x1 {cluster_xs(gen)};
@@ -159,7 +162,7 @@ int main(int argc, char* argv[]) {
 
     double mean_distance {};
     if (mode == "uniform") {
-        mean_distance= uniform_point_distribution(seed, num_points);
+        mean_distance = uniform_point_distribution(seed, num_points);
     } else {
         mean_distance = clustered_point_distribution(seed, num_points);
     }
